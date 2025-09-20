@@ -55,6 +55,13 @@ const Header = ({ currentPage = "home" }: HeaderProps) => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button 
+              variant="secondary"
+              className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => window.location.href = '/login'}
+            >
+              Login
+            </Button>
           </nav>
         </div>
       </div>
