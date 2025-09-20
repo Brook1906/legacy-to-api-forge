@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -7,6 +7,7 @@ import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -14,21 +15,52 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const { toast } = useToast();
+  const { signIn, signUp, user } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { error } = isSignUp 
+        ? await signUp(email, password)
+        : await signIn(email, password);
+
+      if (error) {
+        toast({
+          title: "Authentication Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: isSignUp ? "Account Created" : "Welcome Back",
+          description: isSignUp 
+            ? "Please check your email to verify your account." 
+            : "You have successfully signed in.",
+        });
+        if (!isSignUp) {
+          navigate('/');
+        }
+      }
+    } catch (error) {
       toast({
-        title: "Login Attempt",
-        description: "This is a demo. No actual login is processed.",
-        variant: "default",
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
       });
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -41,8 +73,12 @@ const LoginPage = () => {
             <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <LockKeyhole className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-            <p className="text-muted-foreground mt-2">Sign in to access your account</p>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isSignUp ? 'Create Account' : 'Welcome back'}
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              {isSignUp ? 'Sign up to start modernizing your legacy data' : 'Sign in to access your account'}
+            </p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -112,16 +148,22 @@ const LoginPage = () => {
               className="w-full py-6 rounded-lg" 
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading 
+                ? (isSignUp ? 'Creating Account...' : 'Signing in...') 
+                : (isSignUp ? 'Create Account' : 'Sign in')
+              }
             </Button>
           </form>
           
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <Link to="/waitlist" className="text-primary hover:underline font-medium">
-                Join the waitlist
-              </Link>
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button 
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-primary hover:underline font-medium"
+              >
+                {isSignUp ? 'Sign in' : 'Sign up'}
+              </button>
             </p>
           </div>
           
