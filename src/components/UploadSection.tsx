@@ -108,20 +108,15 @@ const UploadSection = () => {
 
       setParsedData(parsedContent);
 
-      // Store the entire dataset as a single JSON file entry
+      // Store the entire dataset as JSONB array in uploaded_datasets table
       const datasetName = selectedFile.name.split('.')[0] || 'Unknown Dataset';
-      const fileSize = selectedFile.size;
-      
       const { error } = await supabase
         .from('uploaded_datasets')
         .insert([{
           user_id: user.id,
           name: datasetName,
-          description: `Uploaded from ${selectedFile.name} (${(fileSize / 1024).toFixed(2)} KB)`,
-          data: parsedContent,
-          file_type: fileExtension,
-          file_size: fileSize,
-          record_count: parsedContent.length
+          description: `Uploaded from ${selectedFile.name}`,
+          data: parsedContent
         }]);
 
       if (error) {
@@ -132,7 +127,7 @@ const UploadSection = () => {
       setUploadStatus("done");
       toast({
         title: "Upload successful",
-        description: `${selectedFile.name} uploaded successfully with ${parsedContent.length} records as a single JSON entry.`,
+        description: `${selectedFile.name} has been processed and converted to JSON with ${parsedContent.length} records.`,
       });
     } catch (error) {
       setUploadStatus("waiting");

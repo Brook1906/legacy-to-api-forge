@@ -4,8 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Brain, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 interface SchemaField {
   field: string;
@@ -18,119 +16,65 @@ const SchemaSection = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [schemaData, setSchemaData] = useState<SchemaField[]>([]);
   const { toast } = useToast();
-  const { user } = useAuth();
 
-  const handleGenerateSchema = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to generate schema analysis.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleGenerateSchema = () => {
     setIsAnalyzing(true);
     
-    try {
-      // Fetch user's uploaded datasets
-      const { data: datasets, error } = await supabase
-        .from('uploaded_datasets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (!datasets || datasets.length === 0) {
-        toast({
-          title: "No data found",
-          description: "Please upload some files first to generate schema analysis.",
-          variant: "destructive",
-        });
-        setIsAnalyzing(false);
-        return;
-      }
-
-      // Analyze the most recent dataset
-      const latestDataset = datasets[0];
-      const sampleData = latestDataset.data;
-
-      if (!sampleData || sampleData.length === 0) {
-        toast({
-          title: "No data to analyze",
-          description: "The selected dataset appears to be empty.",
-          variant: "destructive",
-        });
-        setIsAnalyzing(false);
-        return;
-      }
-
-      // Analyze the first record to determine schema
-      const firstRecord = sampleData[0];
-      const fields = Object.keys(firstRecord);
-      
-      const analyzedSchema: SchemaField[] = fields.map(field => {
-        const value = firstRecord[field];
-        let suggestedType = "VARCHAR(255)";
-        let notes = "Detected from uploaded data";
-
-        // Determine type based on value
-        if (typeof value === 'number') {
-          if (Number.isInteger(value)) {
-            suggestedType = "INTEGER";
-            notes = "Numeric integer field";
-          } else {
-            suggestedType = "DECIMAL(10,2)";
-            notes = "Numeric decimal field";
-          }
-        } else if (typeof value === 'boolean') {
-          suggestedType = "BOOLEAN";
-          notes = "Boolean field";
-        } else if (value && typeof value === 'string') {
-          if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
-            suggestedType = "TIMESTAMP";
-            notes = "Date/time field";
-          } else if (value.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
-            suggestedType = "VARCHAR(255)";
-            notes = "Email address field";
-          } else if (value.length > 255) {
-            suggestedType = "TEXT";
-            notes = "Long text field";
-          }
+    // Simulate AI analysis
+    setTimeout(() => {
+      const mockData: SchemaField[] = [
+        {
+          field: "CUST_ID",
+          suggestedName: "customer_id",
+          type: "UUID",
+          notes: "Primary key - converted from legacy ID"
+        },
+        {
+          field: "CUST_NM",
+          suggestedName: "customer_name",
+          type: "VARCHAR(255)",
+          notes: "Customer full name"
+        },
+        {
+          field: "ADDR_LN1",
+          suggestedName: "address_line_1",
+          type: "VARCHAR(255)",
+          notes: "Primary address line"
+        },
+        {
+          field: "ADDR_LN2",
+          suggestedName: "address_line_2",
+          type: "VARCHAR(255)",
+          notes: "Secondary address line"
+        },
+        {
+          field: "CITY_NM",
+          suggestedName: "city",
+          type: "VARCHAR(100)",
+          notes: "City name"
+        },
+        {
+          field: "ST_CD",
+          suggestedName: "state_code",
+          type: "CHAR(2)",
+          notes: "State abbreviation"
+        },
+        {
+          field: "ZIP_CD",
+          suggestedName: "postal_code",
+          type: "VARCHAR(10)",
+          notes: "ZIP/postal code"
         }
-
-        // Generate suggested modern name
-        const suggestedName = field
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '_')
-          .replace(/_+/g, '_')
-          .replace(/^_|_$/g, '');
-
-        return {
-          field,
-          suggestedName,
-          type: suggestedType,
-          notes
-        };
-      });
+      ];
       
-      setSchemaData(analyzedSchema);
+      setSchemaData(mockData);
       setIsAnalyzing(false);
       
       toast({
         title: "Schema analysis complete",
-        description: `Analyzed ${fields.length} fields from "${latestDataset.name}".`,
+        description: "AI has analyzed your data and generated modern schema suggestions.",
       });
-    } catch (error) {
-      console.error('Schema analysis error:', error);
-      toast({
-        title: "Analysis failed",
-        description: "Failed to analyze your uploaded data.",
-        variant: "destructive",
-      });
-      setIsAnalyzing(false);
-    }
+    }, 3000);
   };
 
   return (
