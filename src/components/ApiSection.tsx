@@ -12,7 +12,7 @@ interface ApiEndpoint {
   path: string;
   description: string;
   tested: boolean;
-  api: 'datasets' | 'customers';
+  api: 'datasets' | 'customers' | 'rest' | 'files';
 }
 
 const ApiSection = () => {
@@ -51,6 +51,34 @@ const ApiSection = () => {
       description: "Create new customer record",
       tested: false,
       api: 'customers'
+    },
+    {
+      method: "GET",
+      path: "/rest-api/{dataset_name}",
+      description: "Access uploaded data as REST API",
+      tested: false,
+      api: 'rest'
+    },
+    {
+      method: "POST",
+      path: "/rest-api/{dataset_name}",
+      description: "Add new record to dataset",
+      tested: false,
+      api: 'rest'
+    },
+    {
+      method: "GET",
+      path: "/file-api/list",
+      description: "List all uploaded files",
+      tested: false,
+      api: 'files'
+    },
+    {
+      method: "GET",
+      path: "/file-api/download/{id}",
+      description: "Download file by ID",
+      tested: false,
+      api: 'files'
     }
   ]);
   
@@ -80,6 +108,8 @@ const ApiSection = () => {
         throw new Error('No valid session found');
       }
 
+                           endpoint.api === 'rest' ? 'rest-api' :
+                           endpoint.api === 'files' ? 'file-api' :
       const functionName = endpoint.api === 'datasets' ? 'datasets-api' : 'customers-api';
       
       let requestOptions: any = {
@@ -97,6 +127,11 @@ const ApiSection = () => {
             name: 'Test Dataset API',
             description: 'API test dataset',
             data: [{ id: 1, name: 'Sample Record', value: 'test' }]
+          };
+        } else if (endpoint.api === 'rest') {
+          requestOptions.body = {
+            test_field: 'test_value',
+            created_at: new Date().toISOString()
           };
         } else {
           requestOptions.body = {
@@ -220,6 +255,94 @@ const ApiSection = () => {
               <div className="space-y-3">
                 <h4 className="font-medium text-sm text-muted-foreground">Legacy Customer Endpoints</h4>
                 {endpoints.filter(ep => ep.api === 'customers').map((endpoint, index) => {
+                  const originalIndex = endpoints.findIndex(ep => ep === endpoint);
+                  return (
+                    <div
+                      key={originalIndex}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getMethodBadgeVariant(endpoint.method)} className="text-xs">
+                          {endpoint.method}
+                        </Badge>
+                        <div>
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {endpoint.path}
+                          </code>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {endpoint.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {endpoint.tested && (
+                          <CheckCircle className="h-3 w-3 text-success" />
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestEndpoint(originalIndex)}
+                          disabled={endpoint.tested}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Play className="h-3 w-3" />
+                          {endpoint.tested ? "Tested" : "Test"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground">REST API Endpoints</h4>
+                {endpoints.filter(ep => ep.api === 'rest').map((endpoint, index) => {
+                  const originalIndex = endpoints.findIndex(ep => ep === endpoint);
+                  return (
+                    <div
+                      key={originalIndex}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getMethodBadgeVariant(endpoint.method)} className="text-xs">
+                          {endpoint.method}
+                        </Badge>
+                        <div>
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {endpoint.path}
+                          </code>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {endpoint.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {endpoint.tested && (
+                          <CheckCircle className="h-3 w-3 text-success" />
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestEndpoint(originalIndex)}
+                          disabled={endpoint.tested}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Play className="h-3 w-3" />
+                          {endpoint.tested ? "Tested" : "Test"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground">File Management Endpoints</h4>
+                {endpoints.filter(ep => ep.api === 'files').map((endpoint, index) => {
                   const originalIndex = endpoints.findIndex(ep => ep === endpoint);
                   return (
                     <div

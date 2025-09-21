@@ -4,6 +4,7 @@ import SchemaSection from "@/components/SchemaSection";
 import ApiSection from "@/components/ApiSection";
 import DataViewer from "@/components/DataViewer";
 import MicroservicesSection from "@/components/MicroservicesSection";
+import FileHistorySection from "@/components/FileHistorySection";
 import heroImage from "@/assets/hero-image.jpg";
 
 const Index = () => {
@@ -35,6 +36,7 @@ const Index = () => {
       <main className="container mx-auto px-6 py-12">
         <div className="space-y-12">
           <UploadSection />
+          <FileHistorySection />
           <SchemaSection />
           <ApiSection />
           <DataViewer />
