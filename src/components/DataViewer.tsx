@@ -1,222 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Database, RefreshCw, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-interface CustomerData {
+interface DatasetRecord {
   id: string;
-  user_id: string;
   name: string;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-  phone: string | null;
-  email: string | null;
+  description?: string;
+  data: any[];
   created_at: string;
   updated_at: string;
 }
 
 const DataViewer = () => {
-  const [customerData, setCustomerData] = useState<CustomerData[]>([]);
+  const [datasets, setDatasets] = useState<DatasetRecord[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState<DatasetRecord | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
 
-  const fetchCustomerData = async () => {
-    if (!session) return;
+  const fetchDatasets = async () => {
+    if (!user) return;
     
     try {
       const { data, error } = await supabase
-        .from('legacy_customers')
+        .from('uploaded_datasets')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
+      if (error) throw error;
+      setDatasets(data || []);
+      
+      // Auto-select the latest dataset if none selected
+      if (data && data.length > 0 && !selectedDataset) {
+        setSelectedDataset(data[0]);
       }
-
-      setCustomerData(data || []);
     } catch (error) {
+      console.error('Error fetching datasets:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch customer data.",
+        title: "Error loading data",
+        description: "Failed to fetch datasets from the database.",
         variant: "destructive",
       });
     }
   };
 
-  const addSampleData = async () => {
-    if (!session) return;
-    
-    setIsRefreshing(true);
-    try {
-      const sampleData = [
-        {
-          user_id: session.user.id,
-          name: 'Acme Corporation',
-          address: '123 Business Ave',
-          city: 'New York',
-          state: 'NY',
-          postal_code: '10001',
-          phone: '555-0123',
-          email: 'contact@acme.com'
-        },
-        {
-          user_id: session.user.id,
-          name: 'Global Industries',
-          address: '456 Corporate Blvd',
-          city: 'San Francisco',
-          state: 'CA',
-          postal_code: '94105',
-          phone: '555-0456',
-          email: 'info@global.com'
-        },
-        {
-          user_id: session.user.id,
-          name: 'Tech Solutions Inc',
-          address: '789 Innovation Way',
-          city: 'Austin',
-          state: 'TX',
-          postal_code: '73301',
-          phone: '555-0789',
-          email: 'hello@techsolutions.com'
-        }
-      ];
-
-      const { error } = await supabase
-        .from('legacy_customers')
-        .insert(sampleData);
-
-      if (error) {
-        throw error;
-      }
-
-      await fetchCustomerData();
-      toast({
-        title: "Sample Data Added",
-        description: "Sample customer data has been added successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add sample data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
+  const getDataColumns = () => {
+    if (!selectedDataset || !selectedDataset.data || selectedDataset.data.length === 0) {
+      return [];
     }
+    
+    const firstRecord = selectedDataset.data[0];
+    return Object.keys(firstRecord);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchCustomerData();
+    await fetchDatasets();
     setIsRefreshing(false);
-    toast({
-      title: "Data Refreshed",
-      description: "Customer data has been updated successfully.",
-    });
   };
 
   useEffect(() => {
-    if (session) {
-      fetchCustomerData().finally(() => setIsLoading(false));
-    } else {
+    const loadData = async () => {
+      setIsLoading(true);
+      await fetchDatasets();
       setIsLoading(false);
+    };
+
+    if (user) {
+      loadData();
     }
-  }, [session]);
+  }, [user]);
 
   if (!user) {
     return (
-      <Card className="w-full">
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">Modernized Data Viewer</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Please sign in to view your modernized legacy data
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Modernized Data Viewer
+          </CardTitle>
+          <CardDescription>
+            Please sign in to view your uploaded datasets.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            Authentication required to access customer data.
-          </p>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Modernized Data Viewer
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
   }
 
+  const columns = getDataColumns();
+
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle className="text-xl font-semibold">Modernized Data Viewer</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            View the ingested and transformed legacy customer data
-          </CardDescription>
-        </div>
-        <div className="flex gap-2">
-          {customerData.length === 0 && !isLoading && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={addSampleData}
-              disabled={isRefreshing}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Sample Data
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+    <Card className="shadow-card">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-primary" />
+              Modernized Data Viewer
+            </CardTitle>
+            <CardDescription>
+              View your uploaded datasets same to same as they were converted to JSON.
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            {datasets.length > 0 && (
+              <Badge variant="secondary">{datasets.length} datasets</Badge>
+            )}
+            {selectedDataset && (
+              <Badge variant="outline">{selectedDataset.data.length} records</Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <p className="text-center text-muted-foreground py-8">Loading customer data...</p>
-        ) : customerData.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            No customer data found. Click "Add Sample Data" to get started.
-          </p>
+        {datasets.length === 0 ? (
+          <div className="text-center py-8">
+            <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No datasets available</h3>
+            <p className="text-muted-foreground mb-4">
+              Upload some legacy data files to see them here.
+            </p>
+          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>State</TableHead>
-                <TableHead>Postal Code</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customerData.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.address || '-'}</TableCell>
-                  <TableCell>{customer.city || '-'}</TableCell>
-                  <TableCell>{customer.state || '-'}</TableCell>
-                  <TableCell>{customer.postal_code || '-'}</TableCell>
-                  <TableCell>{customer.phone || '-'}</TableCell>
-                  <TableCell>{customer.email || '-'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2">
+                {datasets.map((dataset) => (
+                  <Button
+                    key={dataset.id}
+                    variant={selectedDataset?.id === dataset.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedDataset(dataset)}
+                  >
+                    {dataset.name}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            
+            {selectedDataset && selectedDataset.data.length > 0 && (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="p-4 bg-muted/50 border-b">
+                  <h4 className="font-medium">{selectedDataset.name}</h4>
+                  <p className="text-sm text-muted-foreground">{selectedDataset.description}</p>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {columns.map((column) => (
+                        <TableHead key={column}>{column}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedDataset.data.map((record, index) => (
+                      <TableRow key={index}>
+                        {columns.map((column) => (
+                          <TableCell key={column}>
+                            {typeof record[column] === 'object' 
+                              ? JSON.stringify(record[column])
+                              : record[column]?.toString() || 'N/A'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

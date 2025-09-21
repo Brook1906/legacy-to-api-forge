@@ -12,39 +12,45 @@ interface ApiEndpoint {
   path: string;
   description: string;
   tested: boolean;
+  api: 'datasets' | 'customers';
 }
 
 const ApiSection = () => {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([
     {
       method: "GET",
-      path: "/api/customers",
-      description: "Retrieve all customers",
-      tested: false
+      path: "/api/datasets",
+      description: "Retrieve all uploaded datasets",
+      tested: false,
+      api: 'datasets'
     },
     {
       method: "GET",
-      path: "/api/customers/{id}",
-      description: "Get customer by ID",
-      tested: false
+      path: "/api/datasets/{id}",
+      description: "Get specific dataset by ID",
+      tested: false,
+      api: 'datasets'
+    },
+    {
+      method: "POST",
+      path: "/api/datasets",
+      description: "Create new dataset",
+      tested: false,
+      api: 'datasets'
+    },
+    {
+      method: "GET",
+      path: "/api/customers",
+      description: "Retrieve all legacy customers",
+      tested: false,
+      api: 'customers'
     },
     {
       method: "POST",
       path: "/api/customers",
-      description: "Create new customer",
-      tested: false
-    },
-    {
-      method: "PUT",
-      path: "/api/customers/{id}",
-      description: "Update customer",
-      tested: false
-    },
-    {
-      method: "DELETE",
-      path: "/api/customers/{id}",
-      description: "Delete customer",
-      tested: false
+      description: "Create new customer record",
+      tested: false,
+      api: 'customers'
     }
   ]);
   
@@ -74,43 +80,34 @@ const ApiSection = () => {
         throw new Error('No valid session found');
       }
 
-      let functionPath = 'customers';
-      if (endpoint.path.includes('{id}')) {
-        // For demo, use the first customer's ID if available
-        const { data: customers } = await supabase
-          .from('legacy_customers')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-        
-        if (customers && customers.length > 0) {
-          functionPath = `customers/${customers[0].id}`;
-        } else {
-          functionPath = 'customers/demo-id';
-        }
-      }
-
+      const functionName = endpoint.api === 'datasets' ? 'datasets-api' : 'customers-api';
+      
       let requestOptions: any = {
-        body: {
-          path: functionPath,
-          method: endpoint.method,
+        method: endpoint.method,
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
         }
       };
 
-      // Add test data for POST/PUT requests
-      if (endpoint.method === 'POST' || endpoint.method === 'PUT') {
-        requestOptions.body.data = {
-          name: 'Test Customer',
-          email: 'test@example.com',
-          phone: '555-0123',
-          address: '123 Test St',
-          city: 'Test City',
-          state: 'TS',
-          postal_code: '12345'
-        };
+      // Add test data for POST requests
+      if (endpoint.method === 'POST') {
+        if (endpoint.api === 'datasets') {
+          requestOptions.body = {
+            name: 'Test Dataset API',
+            description: 'API test dataset',
+            data: [{ id: 1, name: 'Sample Record', value: 'test' }]
+          };
+        } else {
+          requestOptions.body = {
+            name: 'Test Customer API',
+            email: 'test@example.com',
+            phone: '555-0123'
+          };
+        }
       }
 
-      const { data, error } = await supabase.functions.invoke('customers-api', requestOptions);
+      const { data, error } = await supabase.functions.invoke(functionName, requestOptions);
 
       if (error) throw error;
 
@@ -122,7 +119,7 @@ const ApiSection = () => {
       
       toast({
         title: "Test successful",
-        description: `${endpoint.method} ${endpoint.path} - Edge function responded successfully`,
+        description: `${endpoint.method} ${endpoint.path} - API responded successfully`,
       });
     } catch (error) {
       toast({
@@ -156,7 +153,7 @@ const ApiSection = () => {
           Generated API Endpoints
         </CardTitle>
         <CardDescription>
-          Test your newly created APIs directly from the browser.
+          Test your auto-generated APIs for datasets and legacy data directly from the browser.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -167,7 +164,7 @@ const ApiSection = () => {
               className="flex items-center gap-2"
               onClick={() => toast({
                 title: "API Documentation",
-                description: "These endpoints interact with your legacy_customers table in Supabase. All data is filtered by user authentication.",
+                description: "These endpoints interact with your uploaded_datasets and legacy_customers tables. All data is filtered by user authentication.",
               })}
             >
               <Database className="h-4 w-4" />
@@ -176,42 +173,93 @@ const ApiSection = () => {
           </div>
           
           <div className="space-y-3">
-            {endpoints.map((endpoint, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <Badge variant={getMethodBadgeVariant(endpoint.method)}>
-                  {endpoint.method}
-                </Badge>
-                <div>
-                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                    {endpoint.path}
-                  </code>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {endpoint.description}
-                  </p>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground">Dataset Endpoints</h4>
+                {endpoints.filter(ep => ep.api === 'datasets').map((endpoint, index) => {
+                  const originalIndex = endpoints.findIndex(ep => ep === endpoint);
+                  return (
+                    <div
+                      key={originalIndex}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getMethodBadgeVariant(endpoint.method)} className="text-xs">
+                          {endpoint.method}
+                        </Badge>
+                        <div>
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {endpoint.path}
+                          </code>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {endpoint.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {endpoint.tested && (
+                          <CheckCircle className="h-3 w-3 text-success" />
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestEndpoint(originalIndex)}
+                          disabled={endpoint.tested}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Play className="h-3 w-3" />
+                          {endpoint.tested ? "Tested" : "Test"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               
-              <div className="flex items-center gap-2">
-                {endpoint.tested && (
-                  <CheckCircle className="h-4 w-4 text-success" />
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTestEndpoint(index)}
-                  disabled={endpoint.tested}
-                  className="flex items-center gap-2"
-                >
-                  <Play className="h-3 w-3" />
-                  {endpoint.tested ? "Tested" : "Test"}
-                </Button>
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-muted-foreground">Legacy Customer Endpoints</h4>
+                {endpoints.filter(ep => ep.api === 'customers').map((endpoint, index) => {
+                  const originalIndex = endpoints.findIndex(ep => ep === endpoint);
+                  return (
+                    <div
+                      key={originalIndex}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={getMethodBadgeVariant(endpoint.method)} className="text-xs">
+                          {endpoint.method}
+                        </Badge>
+                        <div>
+                          <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            {endpoint.path}
+                          </code>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {endpoint.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {endpoint.tested && (
+                          <CheckCircle className="h-3 w-3 text-success" />
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleTestEndpoint(originalIndex)}
+                          disabled={endpoint.tested}
+                          className="flex items-center gap-1 text-xs"
+                        >
+                          <Play className="h-3 w-3" />
+                          {endpoint.tested ? "Tested" : "Test"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            ))}
           </div>
         </div>
       </CardContent>

@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, CheckCircle, Loader2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,7 @@ const UploadSection = () => {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("waiting");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<any[]>([]);
+  const [jsonDownloadUrl, setJsonDownloadUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -59,6 +60,22 @@ const UploadSection = () => {
     }
   };
 
+  const downloadJson = () => {
+    if (parsedData.length === 0) return;
+    
+    const dataStr = JSON.stringify(parsedData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    setJsonDownloadUrl(url);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedFile?.name.split('.')[0] || 'data'}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) {
       toast({
@@ -90,33 +107,27 @@ const UploadSection = () => {
       }
 
       setParsedData(parsedContent);
-      
-      // Store parsed data in legacy_customers table
-      for (const item of parsedContent) {
-        const customerData = {
+
+      // Store the entire dataset as JSONB array in uploaded_datasets table
+      const datasetName = selectedFile.name.split('.')[0] || 'Unknown Dataset';
+      const { error } = await supabase
+        .from('uploaded_datasets')
+        .insert([{
           user_id: user.id,
-          name: item.name || item.customer_name || item.title || 'Unknown',
-          email: item.email || item.customer_email || '',
-          phone: item.phone || item.telephone || item.phone_number || '',
-          address: item.address || item.street_address || '',
-          city: item.city || '',
-          state: item.state || item.province || '',
-          postal_code: item.postal_code || item.zip_code || item.zip || '',
-        };
+          name: datasetName,
+          description: `Uploaded from ${selectedFile.name}`,
+          data: parsedContent
+        }]);
 
-        const { error } = await supabase
-          .from('legacy_customers')
-          .insert([customerData]);
-
-        if (error) {
-          console.error('Error inserting customer:', error);
-        }
+      if (error) {
+        console.error('Error inserting dataset:', error);
+        throw error;
       }
 
       setUploadStatus("done");
       toast({
         title: "Upload successful",
-        description: `${selectedFile.name} has been processed and ${parsedContent.length} records added to the database.`,
+        description: `${selectedFile.name} has been processed and converted to JSON with ${parsedContent.length} records.`,
       });
     } catch (error) {
       setUploadStatus("waiting");
@@ -199,17 +210,27 @@ const UploadSection = () => {
             {uploadStatus === "uploading" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Uploading...
+                Converting...
               </>
             ) : uploadStatus === "done" ? (
               <>
                 <CheckCircle className="h-4 w-4" />
-                Uploaded
+                Converted
               </>
             ) : (
-              "Upload Data"
+              "Convert to JSON"
             )}
           </Button>
+          {parsedData.length > 0 && (
+            <Button
+              variant="secondary"
+              onClick={downloadJson}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download JSON
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
