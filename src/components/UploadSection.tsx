@@ -4,14 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type UploadStatus = "waiting" | "uploading" | "done";
 
 const UploadSection = () => {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("waiting");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -20,7 +24,42 @@ const UploadSection = () => {
     }
   };
 
-  const handleUpload = () => {
+  const parseFileContent = (content: string, fileType: string): any[] => {
+    try {
+      if (fileType === 'json') {
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } else if (fileType === 'csv') {
+        const lines = content.split('\n').filter(line => line.trim());
+        if (lines.length < 2) return [];
+        
+        const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+        const data = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/['"]/g, ''));
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = values[index] || '';
+          });
+          return obj;
+        });
+        return data;
+      } else {
+        // For txt and other formats, try to parse as JSON first, then as CSV
+        try {
+          const parsed = JSON.parse(content);
+          return Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          // Try CSV format
+          return parseFileContent(content, 'csv');
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      return [];
+    }
+  };
+
+  const handleUpload = async () => {
     if (!selectedFile) {
       toast({
         title: "No file selected",
@@ -30,16 +69,63 @@ const UploadSection = () => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to upload files.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUploadStatus("uploading");
     
-    // Simulate upload process
-    setTimeout(() => {
+    try {
+      const content = await selectedFile.text();
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase() || 'txt';
+      const parsedContent = parseFileContent(content, fileExtension);
+      
+      if (parsedContent.length === 0) {
+        throw new Error('No valid data found in file');
+      }
+
+      setParsedData(parsedContent);
+      
+      // Store parsed data in legacy_customers table
+      for (const item of parsedContent) {
+        const customerData = {
+          user_id: user.id,
+          name: item.name || item.customer_name || item.title || 'Unknown',
+          email: item.email || item.customer_email || '',
+          phone: item.phone || item.telephone || item.phone_number || '',
+          address: item.address || item.street_address || '',
+          city: item.city || '',
+          state: item.state || item.province || '',
+          postal_code: item.postal_code || item.zip_code || item.zip || '',
+        };
+
+        const { error } = await supabase
+          .from('legacy_customers')
+          .insert([customerData]);
+
+        if (error) {
+          console.error('Error inserting customer:', error);
+        }
+      }
+
       setUploadStatus("done");
       toast({
         title: "Upload successful",
-        description: `${selectedFile.name} has been uploaded and is ready for analysis.`,
+        description: `${selectedFile.name} has been processed and ${parsedContent.length} records added to the database.`,
       });
-    }, 2000);
+    } catch (error) {
+      setUploadStatus("waiting");
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to process file.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = () => {
@@ -74,7 +160,7 @@ const UploadSection = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.json,.txt"
+            accept=".csv,.json,.txt,.log"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -91,7 +177,7 @@ const UploadSection = () => {
                 Choose a file or drag and drop it here
               </p>
               <p className="text-sm text-muted-foreground">
-                Supports CSV, JSON, and TXT files
+                Supports CSV, JSON, TXT, and LOG files
               </p>
             </div>
           )}

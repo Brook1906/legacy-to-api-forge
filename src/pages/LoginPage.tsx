@@ -45,12 +45,11 @@ const LoginPage = () => {
         toast({
           title: isSignUp ? "Account Created" : "Welcome Back",
           description: isSignUp 
-            ? "Please check your email to verify your account." 
+            ? "Account created successfully! You can now sign in." 
             : "You have successfully signed in.",
         });
-        if (!isSignUp) {
-          navigate('/');
-        }
+        // Both signup and signin should redirect to home
+        navigate('/');
       }
     } catch (error) {
       toast({
