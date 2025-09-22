@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import ThemeToggleButton from './ThemeToggleButton';
 import { Database, Settings, LogIn, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -27,6 +28,7 @@ const Header = ({ currentPage = "home" }: HeaderProps) => {
           </div>
           
           <nav className="flex items-center space-x-4">
+            <ThemeToggleButton />
             <Button 
               variant={currentPage === "home" ? "secondary" : "ghost"}
               className={currentPage === "home" ? "" : "text-primary-foreground hover:bg-primary-foreground/20"}
