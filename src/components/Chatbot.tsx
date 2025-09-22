@@ -46,55 +46,22 @@ const Chatbot: React.FC = () => {
   };
 
   return (
-    <div
-      className="fixed bottom-6 right-6 w-80 shadow-lg rounded-lg flex flex-col"
-      style={{ background: '#f8f9fa', color: '#222' }}
-    >
-      <div
-        className="p-4 border-b font-bold rounded-t-lg"
-        style={{ background: '#e5e7eb', color: '#222' }}
-      >
-        Gemini Chatbot
-      </div>
-      <div
-        className="flex-1 p-4 overflow-y-auto"
-        style={{ maxHeight: '300px', background: '#f4f4f5' }}
-      >
+    <div className="fixed bottom-6 right-6 w-80 bg-white shadow-lg rounded-lg flex flex-col">
+      <div className="p-4 border-b font-bold bg-blue-100 rounded-t-lg">Gemini Chatbot</div>
+      <div className="flex-1 p-4 overflow-y-auto" style={{ maxHeight: '300px' }}>
         {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`mb-2 text-sm ${msg.sender === 'bot' ? 'text-left' : 'text-right'}`}
-          >
-            <span
-              style={{
-                background: msg.sender === 'bot' ? '#e5e7eb' : '#f1f5f9',
-                color: '#222',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                display: 'inline-block',
-                maxWidth: '90%',
-                wordBreak: 'break-word',
-              }}
-            >
+          <div key={idx} className={`mb-2 text-sm ${msg.sender === 'bot' ? 'text-left' : 'text-right'}`}>
+            <span className={msg.sender === 'bot' ? 'bg-blue-50 px-2 py-1 rounded' : 'bg-green-50 px-2 py-1 rounded'}>
               {msg.text}
             </span>
           </div>
         ))}
-        {isLoading && (
-          <div className="text-center text-sm" style={{ color: '#6b7280' }}>
-            Thinking...
-          </div>
-        )}
-        {error && (
-          <div className="text-center text-sm p-2" style={{ color: '#dc2626' }}>
-            {error}
-          </div>
-        )}
+        {isLoading && <div className="text-center text-sm text-gray-500">Thinking...</div>}
+        {error && <div className="text-center text-sm text-red-500 p-2">{error}</div>}
       </div>
-      <div className="p-2 border-t flex" style={{ background: '#f8f9fa' }}>
+      <div className="p-2 border-t flex">
         <input
           className="flex-1 border rounded px-2 py-1 mr-2"
-          style={{ background: '#fff', color: '#222' }}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSend()}
@@ -102,8 +69,7 @@ const Chatbot: React.FC = () => {
           disabled={isLoading}
         />
         <button
-          className="px-4 py-1 rounded disabled:opacity-60"
-          style={{ background: '#6b7280', color: '#fff' }}
+          className="bg-blue-500 text-white px-4 py-1 rounded disabled:bg-blue-300"
           onClick={handleSend}
           disabled={isLoading}
         >
